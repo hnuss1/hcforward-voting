@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<!--
+  HC Forward — Board Voting App
+  ═══════════════════════════════════════════════════════════════
+  HOW TO RUN (one-time setup):
+  1. Save this file as index.html anywhere on your laptop
+  2. Open Terminal (Mac) or Command Prompt (Windows)
+  3. Navigate to the folder:  cd path/to/folder
+  4. Start a local server (pick one):
+       Node:   npx serve .          → opens at http://localhost:3000
+       Python: python -m http.server → opens at http://localhost:8000
+  5. Open the URL in your browser
+  6. Share that same URL with board members on the same WiFi network
+     by replacing "localhost" with your laptop's local IP address
+     e.g. http://192.168.1.42:3000
+     (Find your IP: Mac → System Settings → WiFi → Details)
+     (Windows → run ipconfig in Command Prompt → IPv4 Address)
+  ═══════════════════════════════════════════════════════════════
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HC Forward — Board Voting</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --indigo: #6366F1; --violet: #8B5CF6; --emerald: #059669;
+    --amber: #D97706;  --red: #DC2626;    --orange: #B45309; --sky: #0284C7;
+    --bg-dark: linear-gradient(135deg,#1e1b4b,#312e81,#1e3a5f);
+    --bg-green: linear-gradient(135deg,#064e3b,#065f46,#047857);
+    --bg-fac: linear-gradient(160deg,#0f172a,#1e1b4b,#0f172a);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f3f4f6; }
+  .screen { display: none; } .screen.active { display: block; }
+  .center-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+
+  /* ── Cards ── */
+  .card { background:#fff; border-radius:1.25rem; box-shadow:0 20px 60px rgba(0,0,0,.18); padding:2rem; width:100%; max-width:24rem; }
+
+  /* ── Buttons ── */
+  button { cursor:pointer; border:none; font-family:inherit; font-size:.9rem; transition:all .15s; }
+  .btn-primary { width:100%; padding:.85rem 1rem; border-radius:.75rem; background:var(--indigo); color:#fff; font-weight:700; font-size:1rem; }
+  .btn-primary:hover { background:#4f46e5; }
+  .btn-primary:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-dark { width:100%; padding:.85rem 1rem; border-radius:.75rem; background:#111; color:#fff; font-weight:700; font-size:1rem; }
+  .btn-dark:hover { background:#000; }
+  .btn-outline { padding:.75rem 1.25rem; border-radius:.75rem; border:2px solid #d1d5db; background:#fff; color:#374151; font-weight:600; }
+  .btn-outline:hover { background:#f9fafb; }
+  .btn-sm { padding:.5rem 1rem; border-radius:.75rem; font-weight:600; font-size:.8rem; }
+
+  /* ── Inputs ── */
+  input[type=text], input[type=password] {
+    width:100%; border:2px solid #e5e7eb; border-radius:.75rem;
+    padding:.7rem 1rem; font-size:.9rem; font-family:inherit; outline:none; transition:border .15s;
+  }
+  input:focus { border-color: var(--indigo); }
+  label { display:block; font-size:.75rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; }
+
+  /* ── Logo ── */
+  .logo-icon { width:4rem; height:4rem; border-radius:1rem; background:var(--indigo); color:#fff; font-size:1.75rem; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(99,102,241,.4); margin:0 auto .75rem; }
+
+  /* ── Progress bar ── */
+  .sec-progress { display:flex; height:6px; }
+  .sec-seg { flex:1; transition:background .3s; }
+
+  /* ── Score buttons ── */
+  .score-row { display:flex; gap:.5rem; margin-top:.75rem; margin-left:2rem; align-items:center; }
+  .score-btn { flex:1; height:2.75rem; border-radius:.75rem; font-weight:700; font-size:.9rem; border:none; cursor:pointer; transition:all .15s; }
+  .score-btn.s1-off { background:#fef2f2; color:#ef4444; border:1px solid #fecaca; }
+  .score-btn.s1-off:hover { background:#fee2e2; }
+  .score-btn.s1-on  { background:#ef4444; color:#fff; box-shadow:0 4px 12px rgba(239,68,68,.35); }
+  .score-btn.s2-off { background:#fffbeb; color:#d97706; border:1px solid #fde68a; }
+  .score-btn.s2-off:hover { background:#fef3c7; }
+  .score-btn.s2-on  { background:#f59e0b; color:#fff; box-shadow:0 4px 12px rgba(245,158,11,.35); }
+  .score-btn.s3-off { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; }
+  .score-btn.s3-off:hover { background:#d1fae5; }
+  .score-btn.s3-on  { background:#10b981; color:#fff; box-shadow:0 4px 12px rgba(16,185,129,.35); }
+  .score-label { font-size:.75rem; width:4.5rem; text-align:right; font-weight:500; color:#9ca3af; flex-shrink:0; }
+  .score-label.active { color:#6b7280; }
+
+  /* ── Question card ── */
+  .q-card { background:#fff; border-radius:.75rem; padding:1rem; box-shadow:0 1px 4px rgba(0,0,0,.08); border:2px dashed #e5e7eb; margin-bottom:.75rem; }
+  .q-card.answered { border-style:solid; }
+  .q-header { display:flex; align-items:flex-start; gap:.75rem; }
+  .q-num { flex-shrink:0; width:1.5rem; height:1.5rem; border-radius:50%; color:#fff; font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:.1rem; }
+  .q-text { font-size:.875rem; font-weight:500; color:#1f2937; line-height:1.5; }
+
+  /* ── Sticky header (voter) ── */
+  .voter-header { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .voter-header-inner { display:flex; align-items:center; justify-content:space-between; padding:.75rem 1rem; }
+  .voter-header-cell { font-size:.75rem; color:#9ca3af; }
+  .voter-header-cell strong { display:block; font-size:.875rem; color:#111827; }
+  .voter-header-cell.right { text-align:right; }
+  .voter-header-cell.center { text-align:center; }
+
+  /* ── Section hero ── */
+  .sec-hero { border-radius:.75rem; padding:1rem; color:#fff; margin-bottom:1rem; }
+  .sec-hero small { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; opacity:.7; font-weight:600; }
+  .sec-hero h2 { font-size:1.25rem; font-weight:800; margin:.2rem 0; }
+  .sec-hero p { font-size:.8rem; opacity:.7; }
+
+  /* ── Footer nav (voter) ── */
+  .voter-footer { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb; padding:.75rem 1rem; display:flex; gap:.75rem; box-shadow:0 -4px 12px rgba(0,0,0,.08); }
+  .voter-content { max-width:32rem; margin:0 auto; padding:1rem 1rem 7rem; }
+
+  /* ── Facilitator ── */
+  .fac-wrap { min-height:100vh; color:#fff; }
+  .fac-inner { max-width:56rem; margin:0 auto; padding:0 1rem 3rem; }
+  .fac-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 0; border-bottom:1px solid rgba(255,255,255,.1); margin-bottom:1.25rem; }
+  .fac-header h1 { font-size:1.2rem; font-weight:700; }
+  .fac-header-sub { font-size:.8rem; color:rgba(255,255,255,.4); margin-top:.15rem; }
+  .fac-header-sub.pulse { color:#34d399; font-weight:600; }
+  .fac-btns { display:flex; gap:.5rem; flex-wrap:wrap; }
+
+  .hero-card { border-radius:1rem; padding:1.5rem; text-align:center; background:rgba(255,255,255,.07); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.1); margin-bottom:1.25rem; }
+  .hero-score { font-size:5rem; font-weight:900; letter-spacing:-.04em; line-height:1; }
+  .hero-score span { font-size:1.75rem; font-weight:400; opacity:.4; }
+  .verdict { font-size:1.2rem; font-weight:700; margin-top:.75rem; }
+  .score-bar-wrap { margin:.75rem auto 0; max-width:20rem; background:rgba(255,255,255,.1); border-radius:9999px; height:1rem; overflow:hidden; }
+  .score-bar-fill { height:100%; border-radius:9999px; transition:width .7s ease; }
+  .score-bar-labels { display:flex; justify-content:space-between; font-size:.7rem; color:rgba(255,255,255,.3); margin-top:.25rem; max-width:20rem; margin-left:auto; margin-right:auto; }
+
+  .sec-label { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.4); margin-bottom:.6rem; }
+  .sec-row { border-radius:.75rem; padding:.85rem 1rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); margin-bottom:.5rem; }
+  .sec-row-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+  .sec-row-name { display:flex; align-items:center; gap:.5rem; font-size:.875rem; font-weight:500; }
+  .sec-dot { width:.6rem; height:.6rem; border-radius:50%; flex-shrink:0; }
+  .sec-row-score { font-size:.875rem; font-weight:700; }
+  .sec-row-score span { opacity:.4; font-weight:400; }
+  .mini-bar-wrap { background:rgba(255,255,255,.1); border-radius:9999px; height:.45rem; overflow:hidden; }
+  .mini-bar-fill { height:100%; border-radius:9999px; transition:width .7s ease; }
+
+  .table-wrap { border-radius:.75rem; overflow:hidden; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); }
+  .table-head { display:grid; padding:.6rem 1rem; border-bottom:1px solid rgba(255,255,255,.1); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.4); }
+  .table-row { display:grid; padding:.6rem 1rem; border-bottom:1px solid rgba(255,255,255,.05); transition:background .1s; }
+  .table-row:last-child { border-bottom:none; }
+  .table-row:hover { background:rgba(255,255,255,.04); }
+  .table-row.new-vote { background:rgba(52,211,153,.08); }
+  .table-avg { display:grid; padding:.6rem 1rem; border-top:2px solid rgba(255,255,255,.2); background:rgba(255,255,255,.05); }
+  .t-name { font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:.5rem; }
+  .t-sec { font-size:.75rem; text-align:center; font-variant-numeric:tabular-nums; padding:0 .3rem; }
+  .t-total { font-size:.875rem; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; padding-left:.5rem; }
+
+  .waiting { text-align:center; padding:4rem 1rem; color:rgba(255,255,255,.3); }
+  .waiting .w-icon { font-size:3rem; margin-bottom:.75rem; }
+  .waiting p { font-size:1rem; } .waiting small { font-size:.8rem; }
+
+  .error-toast { position:fixed; bottom:5rem; left:1rem; right:1rem; max-width:30rem; margin:0 auto; background:#fee2e2; border:1px solid #fca5a5; color:#b91c1c; border-radius:.75rem; padding:.75rem 1rem; font-size:.875rem; z-index:50; }
+
+  .setup-hint { background:#eef2ff; border-radius:.75rem; padding:1rem; font-size:.75rem; color:#3730a3; line-height:1.6; }
+  .setup-hint p { margin-bottom:.3rem; }
+
+  /* ── Submitted ── */
+  .submitted-body { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+  .sub-score-row { display:flex; justify-content:space-between; align-items:center; font-size:.875rem; margin-bottom:.4rem; }
+  .sub-score-row span:first-child { color:#4b5563; }
+  .sub-score-row span:last-child { font-weight:700; color:#111827; }
+
+  /* util */
+  .mt1 { margin-top:.25rem; } .mt2 { margin-top:.5rem; } .mt3 { margin-top:.75rem; } .mt4 { margin-top:1rem; } .mt5 { margin-top:1.25rem; } .mt6 { margin-top:1.5rem; }
+  .mb3 { margin-bottom:.75rem; } .mb4 { margin-bottom:1rem; }
+  .text-center { text-align:center; } .text-sm { font-size:.875rem; } .text-xs { font-size:.75rem; }
+  .text-gray { color:#6b7280; } .text-light { color:#9ca3af; }
+  .font-bold { font-weight:700; } .font-semibold { font-weight:600; }
+  .flex { display:flex; } .gap2 { gap:.5rem; } .gap3 { gap:.75rem; }
+  .items-center { align-items:center; } .justify-between { justify-content:space-between; }
+  .w-full { width:100%; } .space-y { margin-bottom:.75rem; }
+  .bg-gray { background:#f9fafb; } .rounded { border-radius:.75rem; } .border { border:1px solid #e5e7eb; }
+  .p4 { padding:1rem; } .p5 { padding:1.25rem; }
+  .big-num { font-size:3rem; font-weight:900; color:#111827; line-height:1; }
+  .prog-bar { background:#e5e7eb; border-radius:9999px; height:.75rem; overflow:hidden; margin:.6rem 0 .3rem; }
+  .prog-fill { height:100%; border-radius:9999px; background:linear-gradient(90deg,#6366f1,#8b5cf6); transition:width .4s; }
+</style>
+</head>
+<body>
+
+<!-- ── SETUP ────────────────────────────────────────────────── -->
+<div id="screen-setup" class="screen active">
+  <div class="center-screen" style="background:var(--bg-dark)">
+    <div class="card">
+      <div class="text-center mb4">
+        <div class="logo-icon">🗳️</div>
+        <h1 style="font-size:1.4rem;font-weight:800;color:#111">HC Forward</h1>
+        <p class="text-sm text-gray mt1">Business Case Evaluation · Board Voting</p>
+      </div>
+
+      <div class="space-y">
+        <label for="inp-token">Smartsheet API Token</label>
+        <input type="password" id="inp-token" placeholder="Paste your API token" />
+      </div>
+
+      <div class="space-y mt4">
+        <label for="inp-sheet">Sheet ID <span style="font-weight:400;text-transform:none;color:#9ca3af">(leave blank to auto-create)</span></label>
+        <input type="text" id="inp-sheet" placeholder="e.g. 1234567890123456" />
+      </div>
+
+      <div class="mt2">
+        <button onclick="toggleHint()" class="text-xs" style="background:none;color:var(--indigo);text-decoration:underline;">▼ How to get your API token</button>
+        <div id="hint-box" style="display:none" class="mt2 setup-hint">
+          <p><strong>1.</strong> Log into Smartsheet → click your avatar (top-right)</p>
+          <p><strong>2.</strong> Go to <strong>Apps & Integrations → API Access</strong></p>
+          <p><strong>3.</strong> Click <strong>Generate new access token</strong> and copy it</p>
+          <p><strong>4.</strong> Paste above — leave Sheet ID blank for first-time setup</p>
+        </div>
+      </div>
+
+      <div id="setup-error" class="error-toast" style="position:relative;bottom:auto;left:auto;right:auto;margin-top:.75rem;display:none;"></div>
+
+      <div class="mt5">
+        <button class="btn-primary" onclick="handleConnect()" id="btn-connect">Create Sheet &amp; Continue →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ROLE ──────────────────────────────────────────────────── -->
+<div id="screen-role" class="screen">
+  <div class="center-screen" style="background:var(--bg-dark)">
+    <div class="card">
+      <div class="text-center mb4">
+        <h2 style="font-size:1.2rem;font-weight:800;color:#111">How are you joining?</h2>
+        <p class="text-sm text-gray mt1">Select your role for this session</p>
+      </div>
+      <div id="sheet-info-box" class="bg-gray rounded border p4 text-center mb4">
+        <p class="text-xs text-light">Sheet ID (share with voters)</p>
+        <p id="disp-sheet-id" class="font-bold" style="font-size:.9rem;color:#111;font-family:monospace;margin:.25rem 0"></p>
+        <button onclick="copyInfo()" class="text-xs" style="background:none;color:var(--indigo);text-decoration:underline;" id="copy-btn">Copy Sheet ID + Token</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.75rem">
+        <button class="btn-primary" onclick="goTo('voter-name')" style="display:flex;align-items:center;justify-content:center;gap:.5rem">🗳️ I'm a Voter</button>
+        <button class="btn-dark" onclick="startFacilitator()" style="display:flex;align-items:center;justify-content:center;gap:.5rem">📊 I'm the Facilitator</button>
+      </div>
+      <p class="text-xs text-light text-center mt4">Share this app + the Sheet ID + API Token with board members</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── VOTER NAME ────────────────────────────────────────────── -->
+<div id="screen-voter-name" class="screen">
+  <div class="center-screen" style="background:var(--bg-dark)">
+    <div class="card text-center">
+      <div style="font-size:3.5rem;margin-bottom:1rem">👤</div>
+      <h2 style="font-size:1.2rem;font-weight:800;color:#111">Your Name</h2>
+      <p class="text-sm text-gray mt1 mb4">This will appear on the results board</p>
+      <input type="text" id="inp-voter-name" placeholder="Enter your full name" style="text-align:center;font-size:1.1rem"
+        onkeydown="if(event.key==='Enter'&&this.value.trim())beginVoting()" />
+      <button class="btn-primary mt4" onclick="beginVoting()" id="btn-begin">Begin Voting →</button>
+      <div class="mt3"><button onclick="goTo('role')" class="text-xs text-light" style="background:none;">← Back</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── VOTING ────────────────────────────────────────────────── -->
+<div id="screen-voting" class="screen">
+  <div class="voter-header">
+    <div class="voter-header-inner">
+      <div class="voter-header-cell"><span>Voting as</span><strong id="vh-name" style="max-width:7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block"></strong></div>
+      <div class="voter-header-cell center"><span>Section <span id="vh-sec-num"></span> of 7</span><strong id="vh-sec-name"></strong></div>
+      <div class="voter-header-cell right"><span>Progress</span><strong id="vh-progress" style="color:var(--indigo)"></strong></div>
+    </div>
+    <div class="sec-progress" id="sec-progress-bar"></div>
+  </div>
+
+  <div class="voter-content">
+    <div class="sec-hero" id="sec-hero">
+      <small id="sh-label"></small>
+      <h2 id="sh-name"></h2>
+      <p id="sh-sub"></p>
+    </div>
+    <div id="questions-container"></div>
+  </div>
+
+  <div class="voter-footer">
+    <button class="btn-outline" id="btn-prev" onclick="prevSection()" style="flex-shrink:0;display:none">←</button>
+    <button class="btn-primary" id="btn-next" onclick="nextSection()" style="flex:1"></button>
+  </div>
+  <div id="vote-error" class="error-toast" style="display:none"></div>
+</div>
+
+<!-- ── SUBMITTED ─────────────────────────────────────────────── -->
+<div id="screen-submitted" class="screen">
+  <div class="submitted-body" style="background:var(--bg-green)">
+    <div class="card text-center">
+      <div style="font-size:4rem;margin-bottom:.75rem">✅</div>
+      <h2 style="font-size:1.4rem;font-weight:800;color:#111">Vote Submitted!</h2>
+      <p class="text-sm text-gray mt1">Thank you, <span id="sub-name"></span></p>
+      <div class="bg-gray rounded border p5 mt5 mb4">
+        <p class="big-num"><span id="sub-total"></span><span style="font-size:1.5rem;color:#9ca3af">/60</span></p>
+        <div class="prog-bar"><div class="prog-fill" id="sub-bar"></div></div>
+        <p class="text-sm text-gray" id="sub-verdict"></p>
+      </div>
+      <div id="sub-section-breakdown"></div>
+      <p class="text-xs text-light mt5">The facilitator will share aggregated results when voting closes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── FACILITATOR ───────────────────────────────────────────── -->
+<div id="screen-facilitator" class="screen">
+  <div class="fac-wrap" style="background:var(--bg-fac)">
+    <div class="fac-inner">
+      <div class="fac-header">
+        <div>
+          <h1>Live Results Dashboard</h1>
+          <div class="fac-header-sub" id="fac-sub">0 votes received · refreshing every 5s</div>
+        </div>
+        <div class="fac-btns">
+          <button class="btn-sm" onclick="loadRows()" style="background:rgba(255,255,255,.1);color:#fff;border-radius:.75rem">🔄 Refresh</button>
+          <button class="btn-sm" id="btn-export" onclick="exportCSV()" style="background:#059669;color:#fff;border-radius:.75rem;display:none">⬇️ Export CSV</button>
+          <button class="btn-sm" onclick="confirmClear()" style="background:rgba(239,68,68,.25);color:#fff;border-radius:.75rem">🗑️ Reset</button>
+        </div>
+      </div>
+
+      <!-- Hero -->
+      <div class="hero-card">
+        <p style="font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;opacity:.5;font-weight:600;margin-bottom:.5rem">Average Score</p>
+        <div class="hero-score" id="hero-score">—<span>/60</span></div>
+        <div class="verdict" id="hero-verdict" style="color:#6b7280">Awaiting Votes…</div>
+        <div class="score-bar-wrap"><div class="score-bar-fill" id="hero-bar" style="width:0%;background:linear-gradient(90deg,#6366f1,#6b7280)"></div></div>
+        <div class="score-bar-labels"><span>0</span><span>25</span><span>35</span><span>45</span><span>60</span></div>
+      </div>
+
+      <!-- Section breakdown -->
+      <div class="sec-label">Section Breakdown</div>
+      <div id="sec-breakdown"></div>
+
+      <!-- Voter table -->
+      <div id="voter-table-wrap" style="display:none">
+        <div class="sec-label mt5">Individual Scores</div>
+        <div class="table-wrap">
+          <div class="table-head" id="table-head"></div>
+          <div id="table-body"></div>
+          <div class="table-avg" id="table-avg"></div>
+        </div>
+      </div>
+
+      <div id="fac-waiting" class="waiting">
+        <div class="w-icon">⏳</div>
+        <p>Waiting for votes to come in…</p>
+        <small>Board members should open this app and select "I'm a Voter"</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+const SECTIONS = [
+  { id:"MO",  name:"Market Opportunity",  color:"#6366F1", questions:["Is there a large and/or growing market?","Are your target customer segments clearly defined and validated?","Is there a clear understanding of competitors?"] },
+  { id:"VP",  name:"Value Proposition",   color:"#8B5CF6", questions:["Are the unique benefits and differentiators compelling?","Is there evidence of market demand or early traction?"] },
+  { id:"FV",  name:"Financial Viability", color:"#059669", questions:["Are revenue forecasts realistic and well-supported?","Are costs clearly outlined?","Is there a clear path to profitability?","Does the monetization approach align with our strategy?"] },
+  { id:"SA",  name:"Strategic Alignment", color:"#D97706", questions:["Does the product align with HC Forward's strategic goals?","Does it leverage existing assets or channels?"] },
+  { id:"PF",  name:"Product Feasibility", color:"#DC2626", questions:["Can it be built with available resources?","Can the organization support it operationally?","Are there any legal or regulatory barriers?"] },
+  { id:"RA",  name:"Risk Assessment",     color:"#B45309", questions:["Are there risks related to adoption or competition?","Are there risks in development or go-to-market?","Are there clear plans to address key risks?"] },
+  { id:"GTM", name:"Go-to-Market Plan",   color:"#0284C7", questions:["Is there a clear and realistic launch plan?","Are sales channels and partnerships identified?","Is there a plan to generate awareness and demand?"] }
+];
+const ALL_QS = SECTIONS.flatMap(s => s.questions.map((text,i) => ({ id:`${s.id}_Q${i+1}`, sectionId:s.id, text })));
+const SS_API = "https://api.smartsheet.com/2.0";
+const SCORE_LABELS = {0:"—",1:"Weak",2:"Adequate",3:"Strong"};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let token = "", sheetId = "", colMap = {};
+let voterName = "", scores = {}, secIdx = 0;
+let allRows = [], pollTimer = null, lastCount = 0;
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+function goTo(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(`screen-${name}`).classList.add('active');
+}
+function showError(id, msg) { const el=$(id); el.textContent=msg; el.style.display='block'; }
+function hideError(id) { $(id).style.display='none'; }
+function toggleHint() {
+  const b = $('hint-box'); b.style.display = b.style.display==='none' ? 'block' : 'none';
+}
+function getVerdict(pct) {
+  if(pct>=75) return { label:"Strong Recommend",    color:"#10B981" };
+  if(pct>=58) return { label:"Conditional Approve", color:"#F59E0B" };
+  if(pct>=42) return { label:"Needs Development",   color:"#F97316" };
+  return         { label:"Not Recommended",     color:"#EF4444" };
+}
+async function apiCall(path, opts={}) {
+  const res = await fetch(`${SS_API}${path}`, {
+    ...opts,
+    headers: { "Authorization":`Bearer ${token}`, "Content-Type":"application/json", ...(opts.headers||{}) }
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════════════
+const SHEET_COLS = [
+  { title:"Voter", type:"TEXT_NUMBER", primary:true },
+  { title:"Timestamp", type:"TEXT_NUMBER" },
+  ...ALL_QS.map(q => ({ title:q.id, type:"TEXT_NUMBER" })),
+  ...SECTIONS.map(s => ({ title:`${s.id}_Total`, type:"TEXT_NUMBER" })),
+  { title:"Grand_Total", type:"TEXT_NUMBER" }
+];
+
+async function handleConnect() {
+  token = $('inp-token').value.trim();
+  const sid = $('inp-sheet').value.trim();
+  hideError('setup-error');
+  if (!token) { showError('setup-error','Please enter your API token.'); return; }
+  $('btn-connect').textContent = 'Connecting…';
+  $('btn-connect').disabled = true;
+  try {
+    if (sid) {
+      const data = await apiCall(`/sheets/${sid}`);
+      sheetId = sid;
+      data.columns.forEach(c => colMap[c.title] = c.id);
+    } else {
+      const data = await apiCall('/sheets', { method:'POST', body:JSON.stringify({ name:'HC Forward — Board Voting', columns:SHEET_COLS }) });
+      sheetId = String(data.result.id);
+      data.result.columns.forEach(c => colMap[c.title] = c.id);
+    }
+    $('disp-sheet-id').textContent = sheetId;
+    goTo('role');
+  } catch(e) {
+    showError('setup-error', 'Could not connect: ' + e.message);
+  }
+  $('btn-connect').textContent = sid ? 'Connect to Sheet →' : 'Create Sheet & Continue →';
+  $('btn-connect').disabled = false;
+}
+
+function copyInfo() {
+  navigator.clipboard.writeText(`Sheet ID: ${sheetId}\nAPI Token: ${token}`);
+  $('copy-btn').textContent = '✓ Copied!';
+  setTimeout(() => $('copy-btn').textContent = 'Copy Sheet ID + Token', 2000);
+}
+
+// ═══════════════════════════════════════════════════════
+// VOTING
+// ═══════════════════════════════════════════════════════
+function beginVoting() {
+  const n = $('inp-voter-name').value.trim();
+  if (!n) return;
+  voterName = n; scores = {}; secIdx = 0;
+  renderSection();
+  goTo('voting');
+}
+
+function renderSection() {
+  const sec = SECTIONS[secIdx];
+  const qs = ALL_QS.filter(q => q.sectionId === sec.id);
+  const progress = ALL_QS.filter(q => scores[q.id] > 0).length;
+
+  // Header
+  $('vh-name').textContent = voterName;
+  $('vh-sec-num').textContent = secIdx + 1;
+  $('vh-sec-name').textContent = sec.name;
+  $('vh-progress').textContent = `${progress}/20`;
+
+  // Progress segments
+  const bar = $('sec-progress-bar');
+  bar.innerHTML = SECTIONS.map((s,i) => {
+    const bg = i < secIdx ? s.color : i === secIdx ? s.color + 'aa' : '#E5E7EB';
+    return `<div class="sec-seg" style="background:${bg}"></div>`;
+  }).join('');
+
+  // Hero
+  $('sec-hero').style.background = `linear-gradient(135deg,${sec.color},${sec.color}cc)`;
+  $('sh-label').textContent = `Section ${secIdx+1}`;
+  $('sh-name').textContent = sec.name;
+  $('sh-sub').textContent = `${qs.length} questions · 1 = Weak · 2 = Adequate · 3 = Strong`;
+
+  // Questions
+  const qc = $('questions-container');
+  qc.innerHTML = qs.map((q, qi) => `
+    <div class="q-card ${scores[q.id] ? 'answered' : ''}" id="qc-${q.id}">
+      <div class="q-header">
+        <div class="q-num" style="background:${sec.color}">${qi+1}</div>
+        <div class="q-text">${q.text}</div>
+      </div>
+      <div class="score-row">
+        ${[1,2,3].map(v => {
+          const sel = scores[q.id] === v;
+          const cls = sel ? `s${v}-on` : `s${v}-off`;
+          return `<button class="score-btn ${cls}" onclick="setScore('${q.id}', ${v}, this)">${v}</button>`;
+        }).join('')}
+        <span class="score-label ${scores[q.id] ? 'active' : ''}" id="lbl-${q.id}">${SCORE_LABELS[scores[q.id]||0]}</span>
+      </div>
+    </div>
+  `).join('');
+
+  // Nav buttons
+  const secDone = qs.every(q => scores[q.id] > 0);
+  const allDone = ALL_QS.every(q => scores[q.id] > 0);
+  const prevBtn = $('btn-prev');
+  const nextBtn = $('btn-next');
+  prevBtn.style.display = secIdx > 0 ? 'block' : 'none';
+  if (secIdx < SECTIONS.length - 1) {
+    const total = Object.values(scores).reduce((a,b)=>a+(b||0),0);
+    nextBtn.textContent = `Next: ${SECTIONS[secIdx+1].name} →`;
+    nextBtn.style.background = sec.color;
+    nextBtn.disabled = !secDone;
+    nextBtn.onclick = nextSection;
+  } else {
+    const total = Object.values(scores).reduce((a,b)=>a+(b||0),0);
+    nextBtn.textContent = allDone ? `Submit All Votes · ${total}/60 ✓` : `Answer all questions to submit`;
+    nextBtn.style.background = '#059669';
+    nextBtn.disabled = !allDone;
+    nextBtn.onclick = submitVotes;
+  }
+}
+
+function setScore(qid, val, btn) {
+  scores[qid] = val;
+  // Update buttons in this row
+  const row = btn.parentElement;
+  row.querySelectorAll('.score-btn').forEach((b,i) => {
+    const v = i+1;
+    b.className = `score-btn ${val===v ? `s${v}-on` : `s${v}-off`}`;
+  });
+  // Update label
+  const lbl = $(`lbl-${qid}`);
+  lbl.textContent = SCORE_LABELS[val];
+  lbl.classList.add('active');
+  // Update card border
+  const card = $(`qc-${qid}`);
+  card.classList.add('answered');
+  // Refresh nav
+  const sec = SECTIONS[secIdx];
+  const qs = ALL_QS.filter(q => q.sectionId === sec.id);
+  const secDone = qs.every(q => scores[q.id] > 0);
+  const allDone = ALL_QS.every(q => scores[q.id] > 0);
+  const nextBtn = $('btn-next');
+  nextBtn.disabled = secIdx < SECTIONS.length-1 ? !secDone : !allDone;
+  if (secIdx === SECTIONS.length-1 && allDone) {
+    const total = Object.values(scores).reduce((a,b)=>a+(b||0),0);
+    nextBtn.textContent = `Submit All Votes · ${total}/60 ✓`;
+  }
+  const progress = ALL_QS.filter(q => scores[q.id] > 0).length;
+  $('vh-progress').textContent = `${progress}/20`;
+}
+
+function nextSection() { if(secIdx < SECTIONS.length-1) { secIdx++; renderSection(); window.scrollTo(0,0); } }
+function prevSection() { if(secIdx > 0) { secIdx--; renderSection(); window.scrollTo(0,0); } }
+
+async function submitVotes() {
+  hideError('vote-error');
+  const cells = [
+    { columnId: colMap["Voter"], value: voterName },
+    { columnId: colMap["Timestamp"], value: new Date().toLocaleString() }
+  ];
+  let grand = 0;
+  SECTIONS.forEach(s => {
+    let t = 0;
+    ALL_QS.filter(q=>q.sectionId===s.id).forEach(q => {
+      const v = scores[q.id]||0; t+=v; grand+=v;
+      if(colMap[q.id]) cells.push({ columnId:colMap[q.id], value:v });
+    });
+    if(colMap[`${s.id}_Total`]) cells.push({ columnId:colMap[`${s.id}_Total`], value:t });
+  });
+  if(colMap["Grand_Total"]) cells.push({ columnId:colMap["Grand_Total"], value:grand });
+
+  $('btn-next').textContent = 'Submitting…';
+  $('btn-next').disabled = true;
+  try {
+    await apiCall(`/sheets/${sheetId}/rows`, { method:'POST', body:JSON.stringify([{ cells }]) });
+    renderSubmitted(grand);
+    goTo('submitted');
+  } catch(e) {
+    showError('vote-error', 'Submission failed: ' + e.message);
+    $('btn-next').textContent = 'Retry Submit';
+    $('btn-next').disabled = false;
+  }
+}
+
+function renderSubmitted(total) {
+  const pct = (total/60)*100;
+  $('sub-name').textContent = voterName;
+  $('sub-total').textContent = total;
+  $('sub-bar').style.width = pct + '%';
+  const v = getVerdict(pct);
+  $('sub-verdict').textContent = v.label;
+  $('sub-verdict').style.color = v.color;
+  $('sub-section-breakdown').innerHTML = SECTIONS.map(s => {
+    const qs = ALL_QS.filter(q=>q.sectionId===s.id);
+    const sc = qs.reduce((a,q)=>a+(scores[q.id]||0),0);
+    return `<div class="sub-score-row"><span>${s.name}</span><span>${sc}/${qs.length*3}</span></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// FACILITATOR
+// ═══════════════════════════════════════════════════════
+function startFacilitator() {
+  renderSectionBreakdown([]);
+  renderTableHead();
+  goTo('facilitator');
+  loadRows();
+  pollTimer = setInterval(loadRows, 5000);
+}
+
+async function loadRows() {
+  try {
+    const data = await apiCall(`/sheets/${sheetId}`);
+    const idToTitle = {};
+    data.columns.forEach(c => idToTitle[c.id] = c.title);
+    allRows = (data.rows||[]).map(row => {
+      const d = { name:'', scores:{}, secTotals:{}, grand:0, ts:'' };
+      (row.cells||[]).forEach(cell => {
+        const t = idToTitle[cell.columnId]; if(!t) return;
+        if(t==='Voter') d.name = cell.value||'';
+        else if(t==='Timestamp') d.ts = cell.value||'';
+        else if(t==='Grand_Total') d.grand = Number(cell.value)||0;
+        else if(t.endsWith('_Total')) d.secTotals[t.replace('_Total','')] = Number(cell.value)||0;
+        else if(t.includes('_Q')) d.scores[t] = Number(cell.value)||0;
+      });
+      return d;
+    });
+    const pulse = allRows.length !== lastCount;
+    lastCount = allRows.length;
+    renderFacilitator(pulse);
+  } catch(e) { console.warn('Poll error:', e.message); }
+}
+
+function renderFacilitator(pulse) {
+  const n = allRows.length;
+  const sub = $('fac-sub');
+  sub.textContent = `${n} vote${n!==1?'s':''} received · refreshing every 5s`;
+  if(pulse) { sub.classList.add('pulse'); setTimeout(()=>sub.classList.remove('pulse'),1500); }
+
+  $('btn-export').style.display = n > 0 ? 'inline-block' : 'none';
+  $('fac-waiting').style.display = n === 0 ? 'block' : 'none';
+  $('voter-table-wrap').style.display = n > 0 ? 'block' : 'none';
+
+  if(n===0) { renderHero(0,false); renderSectionBreakdown([]); return; }
+
+  const avgGrand = allRows.reduce((a,v)=>a+v.grand,0)/n;
+  const pct = (avgGrand/60)*100;
+  renderHero(avgGrand, pct, pulse);
+
+  const secAvgs = SECTIONS.map(s => {
+    const max = ALL_QS.filter(q=>q.sectionId===s.id).length*3;
+    const avg = allRows.reduce((a,v)=>a+(v.secTotals[s.id]||0),0)/n;
+    return { ...s, avg, max, pct:(avg/max)*100 };
+  });
+  renderSectionBreakdown(secAvgs);
+  renderTable(secAvgs, avgGrand);
+}
+
+function renderHero(avg, pct, pulse) {
+  const s = $('hero-score');
+  s.innerHTML = (pct!==false ? avg.toFixed(1) : '—') + '<span>/60</span>';
+  if(pulse && pct!==false) { s.style.transform='scale(1.05)'; setTimeout(()=>s.style.transform='',400); }
+  const v = pct!==false && avg>0 ? getVerdict(pct) : {label:'Awaiting Votes…',color:'#6b7280'};
+  $('hero-verdict').textContent = v.label;
+  $('hero-verdict').style.color = v.color;
+  $('hero-bar').style.width = (pct||0) + '%';
+  $('hero-bar').style.background = `linear-gradient(90deg,#6366f1,${v.color})`;
+}
+
+function renderSectionBreakdown(secAvgs) {
+  const fallback = SECTIONS.map(s => ({ ...s, avg:0, max:ALL_QS.filter(q=>q.sectionId===s.id).length*3, pct:0 }));
+  const data = secAvgs.length ? secAvgs : fallback;
+  $('sec-breakdown').innerHTML = data.map(s => `
+    <div class="sec-row">
+      <div class="sec-row-top">
+        <div class="sec-row-name"><div class="sec-dot" style="background:${s.color}"></div>${s.name}</div>
+        <div class="sec-row-score">${secAvgs.length ? s.avg.toFixed(1) : '—'}<span>/${s.max}</span></div>
+      </div>
+      <div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:${s.pct||0}%;background:${s.color}"></div></div>
+    </div>
+  `).join('');
+}
+
+function renderTableHead() {
+  const cols = `grid-template-columns:1fr repeat(7,auto) auto`;
+  $('table-head').setAttribute('style', $('table-head').getAttribute('style')||'' + `;${cols}`);
+  $('table-head').style.gridTemplateColumns = '1fr repeat(7,auto) auto';
+  $('table-head').innerHTML = `<span>Voter</span>${SECTIONS.map(s=>`<span class="t-sec" style="color:${s.color}">${s.id}</span>`).join('')}<span class="t-total">Total</span>`;
+}
+
+function renderTable(secAvgs, avgGrand) {
+  const gc = 'grid-template-columns:1fr repeat(7,auto) auto';
+  $('table-body').innerHTML = allRows.map((v,i) => `
+    <div class="table-row" style="${gc}">
+      <span class="t-name">${v.name||`Voter ${i+1}`}</span>
+      ${SECTIONS.map(s=>`<span class="t-sec" style="color:${s.color}">${v.secTotals[s.id]||'—'}</span>`).join('')}
+      <span class="t-total">${v.grand}</span>
+    </div>
+  `).join('');
+  $('table-avg').style.gridTemplateColumns = '1fr repeat(7,auto) auto';
+  $('table-avg').innerHTML = `
+    <span class="t-name" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.5">Avg</span>
+    ${secAvgs.map(s=>`<span class="t-sec" style="color:${s.color};font-weight:700">${s.avg.toFixed(1)}</span>`).join('')}
+    <span class="t-total" style="font-weight:900">${avgGrand.toFixed(1)}</span>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════
+function exportCSV() {
+  const headers = ["Voter","Timestamp",...ALL_QS.map(q=>q.id),...SECTIONS.map(s=>`${s.id}_Total`),"Grand_Total"];
+  const rows = allRows.map(v => [
+    `"${v.name}"`,`"${v.ts}"`,
+    ...ALL_QS.map(q=>v.scores[q.id]||0),
+    ...SECTIONS.map(s=>v.secTotals[s.id]||0),
+    v.grand
+  ]);
+  const csv = [headers,...rows].map(r=>r.join(",")).join("\n");
+  const uri = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  const a = document.createElement("a");
+  a.href = uri; a.download = "hcforward_votes.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function confirmClear() {
+  if(!confirm('Delete ALL votes from Smartsheet? This cannot be undone.')) return;
+  clearRows();
+}
+async function clearRows() {
+  try {
+    const data = await apiCall(`/sheets/${sheetId}`);
+    const ids = (data.rows||[]).map(r=>r.id);
+    if(!ids.length) return;
+    await apiCall(`/sheets/${sheetId}/rows?ids=${ids.join(',')}&ignoreRowsNotFound=true`, { method:'DELETE' });
+    allRows = []; lastCount = 0;
+    renderFacilitator(false);
+  } catch(e) { alert('Could not clear rows: ' + e.message); }
+}
+
+// Sync inp-sheet label
+$('inp-sheet').addEventListener('input', () => {
+  $('btn-connect').textContent = $('inp-sheet').value.trim() ? 'Connect to Sheet →' : 'Create Sheet & Continue →';
+});
+</script>
+</body>
+</html>
