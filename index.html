@@ -744,19 +744,20 @@ $('inp-sheet').addEventListener('input', () => {
   $('btn-connect').textContent = $('inp-sheet').value.trim() ? 'Connect to Sheet →' : 'Create Sheet & Continue →';
 });
 
-// Auto-connect if ?sheet=ID is in the URL
+// Auto-connect if ?sheet=ID is in the URL, and skip to voter if ?role=voter
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const sid = params.get('sheet');
+  const role = params.get('role');
   if (!sid) return;
   try {
     const data = await apiCall(`/sheets/${sid}`);
     sheetId = sid;
     data.columns.forEach(c => colMap[c.title] = c.id);
     $('disp-sheet-id').textContent = sheetId;
-    goTo('role');
+    if (role === 'voter') goTo('voter-name');
+    else goTo('role');
   } catch(e) {
-    // If auto-connect fails just show setup screen normally
     $('inp-sheet').value = sid;
   }
 })();
