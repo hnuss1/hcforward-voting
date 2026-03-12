@@ -185,11 +185,6 @@
         <p class="text-sm text-gray mt1">Business Case Evaluation · Board Voting</p>
       </div>
 
-      <div class="space-y">
-        <label for="inp-token">Smartsheet API Token</label>
-        <input type="password" id="inp-token" placeholder="Paste your API token" />
-      </div>
-
       <div class="space-y mt4">
         <label for="inp-sheet">Sheet ID <span style="font-weight:400;text-transform:none;color:#9ca3af">(leave blank to auto-create)</span></label>
         <input type="text" id="inp-sheet" placeholder="e.g. 1234567890123456" />
@@ -358,7 +353,7 @@ const SECTIONS = [
   { id:"GTM", name:"Go-to-Market Plan",   color:"#0284C7", questions:["Is there a clear and realistic launch plan?","Are sales channels and partnerships identified?","Is there a plan to generate awareness and demand?"] }
 ];
 const ALL_QS = SECTIONS.flatMap(s => s.questions.map((text,i) => ({ id:`${s.id}_Q${i+1}`, sectionId:s.id, text })));
-const SS_API = "https://api.smartsheet.com/2.0";
+const WORKER_URL = "https://smartsheet-proxy.hnussman.workers.dev/";
 const SCORE_LABELS = {0:"—",1:"Weak",2:"Adequate",3:"Strong"};
 
 // ═══════════════════════════════════════════════════════
@@ -388,9 +383,10 @@ function getVerdict(pct) {
   return         { label:"Not Recommended",     color:"#EF4444" };
 }
 async function apiCall(path, opts={}) {
-  const res = await fetch(`${SS_API}${path}`, {
-    ...opts,
-    headers: { "Authorization":`Bearer ${token}`, "Content-Type":"application/json", ...(opts.headers||{}) }
+  const res = await fetch(WORKER_URL, {
+    method: opts.method || "GET",
+    headers: { "Content-Type":"application/json", "X-SS-Path": path },
+    body: opts.body || undefined
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
@@ -409,10 +405,8 @@ const SHEET_COLS = [
 ];
 
 async function handleConnect() {
-  token = $('inp-token').value.trim();
   const sid = $('inp-sheet').value.trim();
   hideError('setup-error');
-  if (!token) { showError('setup-error','Please enter your API token.'); return; }
   $('btn-connect').textContent = 'Connecting…';
   $('btn-connect').disabled = true;
   try {
