@@ -131,16 +131,17 @@
   .mini-bar-wrap { background:rgba(255,255,255,.1); border-radius:9999px; height:.45rem; overflow:hidden; }
   .mini-bar-fill { height:100%; border-radius:9999px; transition:width .7s ease; }
 
-  .table-wrap { border-radius:.75rem; overflow:hidden; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); }
-  .table-head { display:grid; padding:.6rem 1rem; border-bottom:1px solid rgba(255,255,255,.1); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.4); }
-  .table-row { display:grid; padding:.6rem 1rem; border-bottom:1px solid rgba(255,255,255,.05); transition:background .1s; }
-  .table-row:last-child { border-bottom:none; }
-  .table-row:hover { background:rgba(255,255,255,.04); }
-  .table-row.new-vote { background:rgba(52,211,153,.08); }
-  .table-avg { display:grid; padding:.6rem 1rem; border-top:2px solid rgba(255,255,255,.2); background:rgba(255,255,255,.05); }
-  .t-name { font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:.5rem; }
-  .t-sec { font-size:.75rem; text-align:center; font-variant-numeric:tabular-nums; padding:0 .3rem; }
-  .t-total { font-size:.875rem; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; padding-left:.5rem; }
+  .table-wrap { border-radius:.75rem; overflow:auto; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15); }
+  table.results-table { width:100%; border-collapse:collapse; font-size:.8rem; min-width:600px; }
+  table.results-table th, table.results-table td { padding:.55rem .75rem; text-align:center; border:1px solid rgba(255,255,255,.08); }
+  table.results-table th { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; background:rgba(255,255,255,.08); color:rgba(255,255,255,.6); }
+  table.results-table th.col-voter { text-align:left; min-width:120px; }
+  table.results-table td.col-voter { text-align:left; font-size:.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+  table.results-table td.col-total { font-weight:800; font-size:.9rem; background:rgba(255,255,255,.05); }
+  table.results-table th.col-total { background:rgba(255,255,255,.12); }
+  table.results-table tr:hover td { background:rgba(255,255,255,.04); }
+  table.results-table tr.avg-row td { border-top:2px solid rgba(255,255,255,.25); background:rgba(255,255,255,.07); font-weight:700; }
+  table.results-table tr.avg-row td.col-voter { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.5); }
 
   .waiting { text-align:center; padding:4rem 1rem; color:rgba(255,255,255,.3); }
   .waiting .w-icon { font-size:3rem; margin-bottom:.75rem; }
@@ -324,9 +325,7 @@
       <div id="voter-table-wrap" style="display:none">
         <div class="sec-label mt5">Individual Scores</div>
         <div class="table-wrap">
-          <div class="table-head" id="table-head"></div>
           <div id="table-body"></div>
-          <div class="table-avg" id="table-avg"></div>
         </div>
       </div>
 
@@ -467,7 +466,7 @@ function renderSection() {
   $('sec-hero').style.background = `linear-gradient(135deg,${sec.color},${sec.color}cc)`;
   $('sh-label').textContent = `Section ${secIdx+1}`;
   $('sh-name').textContent = sec.name;
-  $('sh-sub').textContent = `${qs.length} questions · 1 = Weak · 2 = Adequate · 3 = Strong`;
+  $('sh-sub').textContent = `1 = Weak · 2 = Adequate · 3 = Strong`;
 
   // Questions
   const qc = $('questions-container');
@@ -671,27 +670,39 @@ function renderSectionBreakdown(secAvgs) {
   `).join('');
 }
 
-function renderTableHead() {
-  const cols = `grid-template-columns:1fr repeat(7,auto) auto`;
-  $('table-head').setAttribute('style', $('table-head').getAttribute('style')||'' + `;${cols}`);
-  $('table-head').style.gridTemplateColumns = '1fr repeat(7,auto) auto';
-  $('table-head').innerHTML = `<span>Voter</span>${SECTIONS.map(s=>`<span class="t-sec" style="color:${s.color}">${s.id}</span>`).join('')}<span class="t-total">Total</span>`;
-}
+function renderTableHead() {}
 
 function renderTable(secAvgs, avgGrand) {
-  const gc = 'grid-template-columns:1fr repeat(7,auto) auto';
-  $('table-body').innerHTML = allRows.map((v,i) => `
-    <div class="table-row" style="${gc}">
-      <span class="t-name">${v.name||`Voter ${i+1}`}</span>
-      ${SECTIONS.map(s=>`<span class="t-sec" style="color:${s.color}">${v.secTotals[s.id]||'—'}</span>`).join('')}
-      <span class="t-total">${v.grand}</span>
-    </div>
+  const voterRows = allRows.map((v,i) => `
+    <tr>
+      <td class="col-voter">${v.name||`Voter ${i+1}`}</td>
+      ${SECTIONS.map(s => `<td style="color:${s.color};font-weight:600">${v.secTotals[s.id]||'—'}</td>`).join('')}
+      <td class="col-total">${v.grand}</td>
+    </tr>
   `).join('');
-  $('table-avg').style.gridTemplateColumns = '1fr repeat(7,auto) auto';
-  $('table-avg').innerHTML = `
-    <span class="t-name" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.5">Avg</span>
-    ${secAvgs.map(s=>`<span class="t-sec" style="color:${s.color};font-weight:700">${s.avg.toFixed(1)}</span>`).join('')}
-    <span class="t-total" style="font-weight:900">${avgGrand.toFixed(1)}</span>
+
+  const avgRow = `
+    <tr class="avg-row">
+      <td class="col-voter">Average</td>
+      ${secAvgs.map(s => `<td style="color:${s.color}">${s.avg.toFixed(1)}</td>`).join('')}
+      <td class="col-total">${avgGrand.toFixed(1)}</td>
+    </tr>
+  `;
+
+  $('table-body').innerHTML = `
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th class="col-voter">Voter</th>
+          ${SECTIONS.map(s => `<th style="color:${s.color};border-bottom:3px solid ${s.color}">${s.name}</th>`).join('')}
+          <th class="col-total">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${voterRows}
+        ${avgRow}
+      </tbody>
+    </table>
   `;
 }
 
@@ -732,6 +743,23 @@ async function clearRows() {
 $('inp-sheet').addEventListener('input', () => {
   $('btn-connect').textContent = $('inp-sheet').value.trim() ? 'Connect to Sheet →' : 'Create Sheet & Continue →';
 });
+
+// Auto-connect if ?sheet=ID is in the URL
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const sid = params.get('sheet');
+  if (!sid) return;
+  try {
+    const data = await apiCall(`/sheets/${sid}`);
+    sheetId = sid;
+    data.columns.forEach(c => colMap[c.title] = c.id);
+    $('disp-sheet-id').textContent = sheetId;
+    goTo('role');
+  } catch(e) {
+    // If auto-connect fails just show setup screen normally
+    $('inp-sheet').value = sid;
+  }
+})();
 </script>
 </body>
 </html>
