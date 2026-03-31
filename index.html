@@ -252,7 +252,7 @@
   <div class="voter-header">
     <div class="voter-header-inner">
       <div class="voter-header-cell"><span>Voting as</span><strong id="vh-name" style="max-width:7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block"></strong></div>
-      <div class="voter-header-cell center"><span>Section <span id="vh-sec-num"></span> of 7</span><strong id="vh-sec-name"></strong></div>
+      <div class="voter-header-cell center"><span>Section <span id="vh-sec-num"></span> of 4</span><strong id="vh-sec-name"></strong></div>
       <div class="voter-header-cell right"><span>Progress</span><strong id="vh-progress" style="color:var(--indigo)"></strong></div>
     </div>
     <div class="sec-progress" id="sec-progress-bar"></div>
@@ -282,7 +282,7 @@
       <h2 style="font-size:1.4rem;font-weight:800;color:#111">Vote Submitted!</h2>
       <p class="text-sm text-gray mt1">Thank you, <span id="sub-name"></span></p>
       <div class="bg-gray rounded border p5 mt5 mb4">
-        <p class="big-num"><span id="sub-total"></span><span style="font-size:1.5rem;color:#9ca3af">/60</span></p>
+        <p class="big-num"><span id="sub-total"></span><span style="font-size:1.5rem;color:#9ca3af">/24</span></p>
         <div class="prog-bar"><div class="prog-fill" id="sub-bar"></div></div>
         <p class="text-sm text-gray" id="sub-verdict"></p>
       </div>
@@ -311,10 +311,10 @@
       <!-- Hero -->
       <div class="hero-card">
         <p style="font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;opacity:.5;font-weight:600;margin-bottom:.5rem">Average Score</p>
-        <div class="hero-score" id="hero-score">—<span>/60</span></div>
+        <div class="hero-score" id="hero-score">—<span>/24</span></div>
         <div class="verdict" id="hero-verdict" style="color:#6b7280">Awaiting Votes…</div>
         <div class="score-bar-wrap"><div class="score-bar-fill" id="hero-bar" style="width:0%;background:linear-gradient(90deg,#6366f1,#6b7280)"></div></div>
-        <div class="score-bar-labels"><span>0</span><span>25</span><span>35</span><span>45</span><span>60</span></div>
+        <div class="score-bar-labels"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
       </div>
 
       <!-- Section breakdown -->
@@ -343,15 +343,26 @@
 // DATA
 // ═══════════════════════════════════════════════════════
 const SECTIONS = [
-  { id:"MO",  name:"Market Opportunity",  color:"#6366F1", questions:["Is there a large and/or growing market?","Are your target customer segments clearly defined and validated?","Is there a clear understanding of competitors?"] },
-  { id:"VP",  name:"Value Proposition",   color:"#8B5CF6", questions:["Are the unique benefits and differentiators compelling?","Is there evidence of market demand or early traction?"] },
-  { id:"FV",  name:"Financial Viability", color:"#059669", questions:["Are revenue forecasts realistic and well-supported?","Are costs clearly outlined?","Is there a clear path to profitability?","Does the monetization approach align with our strategy?"] },
-  { id:"SA",  name:"Strategic Alignment", color:"#D97706", questions:["Does the product align with HC Forward's strategic goals?","Does it leverage existing assets or channels?"] },
-  { id:"PF",  name:"Product Feasibility", color:"#DC2626", questions:["Can it be built with available resources?","Can the organization support it operationally?","Are there any legal or regulatory barriers?"] },
-  { id:"RA",  name:"Risk Assessment",     color:"#B45309", questions:["Are there risks related to adoption or competition?","Are there risks in development or go-to-market?","Are there clear plans to address key risks?"] },
-  { id:"GTM", name:"Go-to-Market Plan",   color:"#0284C7", questions:["Is there a clear and realistic launch plan?","Are sales channels and partnerships identified?","Is there a plan to generate awareness and demand?"] }
+  { id:"MO",  name:"Market Opportunity",  color:"#6366F1", questions:[
+      "Is there a large and/or growing market?",
+      "Is there a clear understanding of the target customer segments and competitors in the space?"
+  ]},
+  { id:"VP",  name:"Value Proposition",   color:"#8B5CF6", questions:[
+      "Are the unique benefits and differentiators compelling?",
+      "Is there evidence of market demand or early traction?"
+  ]},
+  { id:"FV",  name:"Financial Viability", color:"#059669", questions:[
+      "Are revenue forecasts realistic and well-supported?",
+      "Are costs clearly outlined?"
+  ]},
+  { id:"GTM", name:"Go-to-Market Plan",   color:"#0284C7", questions:[
+      "Is there a clear and realistic launch plan?",
+      "Are sales channels and partnerships identified?"
+  ]}
 ];
 const ALL_QS = SECTIONS.flatMap(s => s.questions.map((text,i) => ({ id:`${s.id}_Q${i+1}`, sectionId:s.id, text })));
+const TOTAL_QS = ALL_QS.length; // 8
+const MAX_SCORE = TOTAL_QS * 3; // 24
 const WORKER_URL = "https://smartsheet-proxy.hnussman.workers.dev/";
 const SCORE_LABELS = {0:"—",1:"Weak",2:"Adequate",3:"Strong"};
 
@@ -453,7 +464,7 @@ function renderSection() {
   $('vh-name').textContent = voterName;
   $('vh-sec-num').textContent = secIdx + 1;
   $('vh-sec-name').textContent = sec.name;
-  $('vh-progress').textContent = `${progress}/20`;
+  $('vh-progress').textContent = `${progress}/${TOTAL_QS}`;
 
   // Progress segments
   const bar = $('sec-progress-bar');
@@ -494,14 +505,13 @@ function renderSection() {
   const nextBtn = $('btn-next');
   prevBtn.style.display = secIdx > 0 ? 'block' : 'none';
   if (secIdx < SECTIONS.length - 1) {
-    const total = Object.values(scores).reduce((a,b)=>a+(b||0),0);
     nextBtn.textContent = `Next: ${SECTIONS[secIdx+1].name} →`;
     nextBtn.style.background = sec.color;
     nextBtn.disabled = !secDone;
     nextBtn.onclick = nextSection;
   } else {
     const total = Object.values(scores).reduce((a,b)=>a+(b||0),0);
-    nextBtn.textContent = allDone ? `Submit All Votes · ${total}/60 ✓` : `Answer all questions to submit`;
+    nextBtn.textContent = allDone ? `Submit All Votes · ${total}/${MAX_SCORE} ✓` : `Answer all questions to submit`;
     nextBtn.style.background = '#059669';
     nextBtn.disabled = !allDone;
     nextBtn.onclick = submitVotes;
@@ -510,20 +520,16 @@ function renderSection() {
 
 function setScore(qid, val, btn) {
   scores[qid] = val;
-  // Update buttons in this row
   const row = btn.parentElement;
   row.querySelectorAll('.score-btn').forEach((b,i) => {
     const v = i+1;
     b.className = `score-btn ${val===v ? `s${v}-on` : `s${v}-off`}`;
   });
-  // Update label
   const lbl = $(`lbl-${qid}`);
   lbl.textContent = SCORE_LABELS[val];
   lbl.classList.add('active');
-  // Update card border
   const card = $(`qc-${qid}`);
   card.classList.add('answered');
-  // Refresh nav
   const sec = SECTIONS[secIdx];
   const qs = ALL_QS.filter(q => q.sectionId === sec.id);
   const secDone = qs.every(q => scores[q.id] > 0);
@@ -532,10 +538,10 @@ function setScore(qid, val, btn) {
   nextBtn.disabled = secIdx < SECTIONS.length-1 ? !secDone : !allDone;
   if (secIdx === SECTIONS.length-1 && allDone) {
     const total = Object.values(scores).reduce((a,b)=>a+(b||0),0);
-    nextBtn.textContent = `Submit All Votes · ${total}/60 ✓`;
+    nextBtn.textContent = `Submit All Votes · ${total}/${MAX_SCORE} ✓`;
   }
   const progress = ALL_QS.filter(q => scores[q.id] > 0).length;
-  $('vh-progress').textContent = `${progress}/20`;
+  $('vh-progress').textContent = `${progress}/${TOTAL_QS}`;
 }
 
 function nextSection() { if(secIdx < SECTIONS.length-1) { secIdx++; renderSection(); window.scrollTo(0,0); } }
@@ -572,7 +578,7 @@ async function submitVotes() {
 }
 
 function renderSubmitted(total) {
-  const pct = (total/60)*100;
+  const pct = (total/MAX_SCORE)*100;
   $('sub-name').textContent = voterName;
   $('sub-total').textContent = total;
   $('sub-bar').style.width = pct + '%';
@@ -633,7 +639,7 @@ function renderFacilitator(pulse) {
   if(n===0) { renderHero(0,false); renderSectionBreakdown([]); return; }
 
   const avgGrand = allRows.reduce((a,v)=>a+v.grand,0)/n;
-  const pct = (avgGrand/60)*100;
+  const pct = (avgGrand/MAX_SCORE)*100;
   renderHero(avgGrand, pct, pulse);
 
   const secAvgs = SECTIONS.map(s => {
@@ -647,7 +653,7 @@ function renderFacilitator(pulse) {
 
 function renderHero(avg, pct, pulse) {
   const s = $('hero-score');
-  s.innerHTML = (pct!==false ? avg.toFixed(1) : '—') + '<span>/60</span>';
+  s.innerHTML = (pct!==false ? avg.toFixed(1) : '—') + `<span>/${MAX_SCORE}</span>`;
   if(pulse && pct!==false) { s.style.transform='scale(1.05)'; setTimeout(()=>s.style.transform='',400); }
   const v = pct!==false && avg>0 ? getVerdict(pct) : {label:'Awaiting Votes…',color:'#6b7280'};
   $('hero-verdict').textContent = v.label;
@@ -739,12 +745,10 @@ async function clearRows() {
   } catch(e) { alert('Could not clear rows: ' + e.message); }
 }
 
-// Sync inp-sheet label
 $('inp-sheet').addEventListener('input', () => {
   $('btn-connect').textContent = $('inp-sheet').value.trim() ? 'Connect to Sheet →' : 'Create Sheet & Continue →';
 });
 
-// Auto-connect if ?sheet=ID is in the URL, and skip to voter if ?role=voter
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const sid = params.get('sheet');
